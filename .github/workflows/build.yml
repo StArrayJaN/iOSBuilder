@@ -115,10 +115,21 @@ jobs:
           else
             exit 1
           fi
+      - name: Find .app path
+        id: find_app
+        run: |
+          app_path=$(find "$archive_path.xcarchive" -type d -name "*.app" | head -1)
+          if [ -z "$app_path" ]; then
+            echo "错误：未找到 .app 文件"
+            exit 1
+          fi
+          echo "找到 .app 路径: $app_path"
+          echo "app_path=$app_path" >> $GITHUB_OUTPUT
+
       - name: Fakesign
         run: |
-          find "$archive_path.xcarchive/Products/Applications/$scheme.app" -type d -path '*/Frameworks/*.framework' -exec ldid -S \{\} \;
-          ldid -S "$archive_path.xcarchive/Products/Applications/$scheme.app"
+          find "${{ steps.find_app.outputs.app_path }}" -type d -path '*/Frameworks/*.framework' -exec ldid -S \{\} \;
+          ldid -S "${{ steps.find_app.outputs.app_path }}"
       - name: Create IPA
         run: |
           mv "$archive_path.xcarchive/Products/Applications" Payload
