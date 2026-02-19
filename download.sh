@@ -6,10 +6,10 @@ echo "开始下载 Unity 导出工程..."
 curl -LO https://github.com/StArrayJaN/iOSBuilder/releases/download/1.0/ADOFAI292.zip
 curl -LO https://github.com/StArrayJaN/iOSBuilder/releases/download/1.0/Il2CppOutputProject.zip
 
-unzip ADOFAI292.zip -d .
-unzip Il2CppOutputProject.zip -d .
+unzip -q ADOFAI292.zip -d .
+unzip -q Il2CppOutputProject.zip -d .
 rm Info.plist
-curl -O https://github.com/StArrayJaN/iOSBuilder/releases/download/1.0/Info.plist
+curl -LO https://github.com/StArrayJaN/iOSBuilder/releases/download/1.0/Info.plist
 
 # 可选：验证关键文件是否存在
 if [ ! -d "Unity-iPhone.xcodeproj" ]; then
