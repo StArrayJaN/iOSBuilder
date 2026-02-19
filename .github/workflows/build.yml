@@ -1,4 +1,4 @@
-name: Xcode - Build (Unity Export)
+name: Build IPA directly
 
 on:
   push:
@@ -8,134 +8,100 @@ on:
 
 jobs:
   build:
-    name: Build using xcodebuild command
+    name: Build and Package IPA
     runs-on: macos-latest
     env:
-      scheme: Unity-iPhone          # ← 修改为 Unity 主 target
+      scheme: Unity-iPhone          # 根据实际修改
       archive_path: archive
-    outputs:
-      scheme: ${{ steps.scheme.outputs.scheme }}
-      archive_path: ${{ env.archive_path }}
 
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.2'      # ← 根据实际需要修改
+          xcode-version: '15.4'      # 使用有效版本
+
       - name: Checkout
         uses: actions/checkout@v3
         with:
           submodules: recursive
 
-       #（可选）如果需要下载额外资源，可在此添加 download.sh 步骤
+      # 如果需要下载外部工程，取消下面注释
       - name: Run download script
         run: |
           chmod +x ./download.sh
           ./download.sh
 
+      - name: Fix permissions
+        run: |
+          chmod +x *.sh
+          chmod +x usymtool usymtoolarm64 2>/dev/null || true
+
       - name: Set Scheme
         id: scheme
         run: |
-          if [ $scheme = default ]
-          then
+          if [ "${{ env.scheme }}" = "default" ]; then
             scheme_list=$(xcodebuild -list -json | tr -d "\n")
             scheme=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
-            echo Using default scheme: $scheme
+            echo "Using default scheme: $scheme"
           else
-            echo Using configured scheme: $scheme
+            scheme="${{ env.scheme }}"
+            echo "Using configured scheme: $scheme"
           fi
           echo "scheme=$scheme" >> $GITHUB_OUTPUT
 
       - name: Set filetype_parameter
         id: filetype_parameter
         run: |
-          filetype_parameter=`ls -A | grep -i \\.xcworkspace\$ && echo workspace || echo project`
-          echo "filetype_parameter=$filetype_parameter" >> $GITHUB_OUTPUT
+          if ls -A | grep -i \\.xcworkspace$ >/dev/null; then
+            echo "filetype_parameter=workspace" >> $GITHUB_OUTPUT
+          else
+            echo "filetype_parameter=project" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set file_to_build
         id: file_to_build
         run: |
-          file_to_build=`ls -A | grep -i \\.xcworkspace\$ || ls -A | grep -i \\.xcodeproj\$`
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
+          file_to_build=$(ls -A | grep -i \\.xcworkspace$ || ls -A | grep -i \\.xcodeproj$ | head -1)
           echo "file_to_build=$file_to_build" >> $GITHUB_OUTPUT
 
-      - name: Build
-        env:
-          scheme: ${{ steps.scheme.outputs.scheme }}
-          filetype_parameter: ${{ steps.filetype_parameter.outputs.filetype_parameter }}
-          file_to_build: ${{ steps.file_to_build.outputs.file_to_build }}
-        run: xcodebuild clean build -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -sdk iphoneos -arch arm64 -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}
-
-      - name: Analyze
-        env:
-          scheme: ${{ steps.scheme.outputs.scheme }}
-          filetype_parameter: ${{ steps.filetype_parameter.outputs.filetype_parameter }}
-          file_to_build: ${{ steps.file_to_build.outputs.file_to_build }}
-        run: xcodebuild analyze -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "generic/platform=iOS" -sdk iphoneos  -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}
-
-      - name: Archive
-        env:
-          scheme: ${{ steps.scheme.outputs.scheme }}
-          filetype_parameter: ${{ steps.filetype_parameter.outputs.filetype_parameter }}
-          file_to_build: ${{ steps.file_to_build.outputs.file_to_build }}
-        run: xcodebuild archive -archivePath "$archive_path" -scheme "$scheme" -destination "generic/platform=iOS" -"$filetype_parameter" "$file_to_build" -sdk iphoneos -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}
-
-      - name: Tar Build Artifact
-        run: tar -cvf "$archive_path.xcarchive.tar" "$archive_path.xcarchive"
-
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.archive_path }}.xcarchive.tar
-          path: ${{ env.archive_path }}.xcarchive.tar
-
-  package:
-    name: Create fake-signed ipa
-    runs-on: ubuntu-latest
-    needs: [build]
-    env:
-      scheme: ${{ needs.build.outputs.scheme }}
-      archive_path: ${{ needs.build.outputs.archive_path }}
-    outputs:
-      artifact: ${{ env.scheme }}.ipa
-
-    steps:
-      - name: Download a Build Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.archive_path }}.xcarchive.tar
-      - name: Extract Build Artifact
-        run: tar -xf "$archive_path.xcarchive.tar"
-      - name: Install ldid
+      - name: Build and Archive
         run: |
-          if [ `uname -s` = "Linux" ]; then
-            curl -sSL -o /usr/local/bin/ldid "${{ github.server_url }}/ProcursusTeam/ldid/releases/latest/download/ldid_linux_`uname -m`"
-            chmod +x /usr/local/bin/ldid
-          elif [ `uname -s` = "Darwin" ]; then
-            brew install ldid
-          else
-            exit 1
-          fi
+          xcodebuild clean archive \
+            -scheme "${{ steps.scheme.outputs.scheme }}" \
+            -"${{ steps.filetype_parameter.outputs.filetype_parameter }}" "${{ steps.file_to_build.outputs.file_to_build }}" \
+            -destination "generic/platform=iOS" \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath "${{ env.archive_path }}" \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            | xcpretty && exit ${PIPESTATUS[0]}
+
+      - name: Install ldid (for fake-sign)
+        run: brew install ldid
+
       - name: Find .app path
         id: find_app
         run: |
-          app_path=$(find "$archive_path.xcarchive" -type d -name "*.app" | head -1)
+          app_path=$(find "${{ env.archive_path }}.xcarchive" -type d -name "*.app" | head -1)
           if [ -z "$app_path" ]; then
             echo "错误：未找到 .app 文件"
             exit 1
           fi
-          echo "找到 .app 路径: $app_path"
           echo "app_path=$app_path" >> $GITHUB_OUTPUT
 
       - name: Fakesign
         run: |
           find "${{ steps.find_app.outputs.app_path }}" -type d -path '*/Frameworks/*.framework' -exec ldid -S \{\} \;
           ldid -S "${{ steps.find_app.outputs.app_path }}"
+
       - name: Create IPA
         run: |
-          mv "$archive_path.xcarchive/Products/Applications" Payload
-          zip -r "$scheme.ipa" "Payload" -x "._*" -x ".DS_Store" -x "__MACOSX"
-      - name: Upload a Build Artifact
+          app_name=$(basename "${{ steps.find_app.outputs.app_path }}")
+          mkdir -p Payload
+          cp -r "${{ steps.find_app.outputs.app_path }}" "Payload/$app_name"
+          zip -r "${{ steps.scheme.outputs.scheme }}.ipa" Payload -x "._*" -x ".DS_Store" -x "__MACOSX"
+
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.scheme }}.ipa
-          path: ${{ env.scheme }}.ipa
+          name: ${{ steps.scheme.outputs.scheme }}.ipa
+          path: ${{ steps.scheme.outputs.scheme }}.ipa
