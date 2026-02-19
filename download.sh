@@ -3,8 +3,8 @@ set -e  # 遇到错误立即退出
 
 echo "开始下载 Unity 导出工程..."
 
-curl -O https://github.com/StArrayJaN/iOSBuilder/releases/download/1.0/ADOFAI292.zip
-curl -O https://github.com/StArrayJaN/iOSBuilder/releases/download/1.0/Il2CppOutputProject.zip
+curl -LO https://github.com/StArrayJaN/iOSBuilder/releases/download/1.0/ADOFAI292.zip
+curl -LO https://github.com/StArrayJaN/iOSBuilder/releases/download/1.0/Il2CppOutputProject.zip
 
 unzip ADOFAI292.zip -d .
 unzip Il2CppOutputProject.zip -d .
