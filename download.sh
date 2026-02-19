@@ -34,4 +34,5 @@ if [ ! -d "Unity-iPhone.xcodeproj" ]; then
     exit 1
 fi
 
+find . -maxdepth 1 -type f -name "*.sh" -exec chmod +x {} \;
 echo "下载并解压完成"
