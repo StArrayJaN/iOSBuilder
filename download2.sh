@@ -14,7 +14,10 @@ if [ ! -d "Unity-iPhone.xcodeproj" ]; then
 fi
 
 find . -maxdepth 1 -type f -name "*.sh" -exec chmod +x {} \;
+
+if [ -f "usymtool" ] && [ -f "usymtoolarm64" ]; then
 chmod +x usymtool
 chmod +x usymtoolarm64
+fi
 
 echo "下载并解压完成"
