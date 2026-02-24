@@ -27,8 +27,8 @@ jobs:
       # 如果需要下载外部工程，取消下面注释
       - name: Run download script
         run: |
-          chmod +x ./download.sh
-          ./download.sh
+          chmod +x ./download2.sh
+          ./download2.sh
 
       - name: Set Scheme
         id: scheme
