@@ -78,13 +78,13 @@ jobs:
           # 获取所有 schemes
           if [ -n "$workspace" ]; then
             schemes=$(xcodebuild -workspace "$workspace" -list -json 2>/dev/null | \
-              ruby -e "require 'json'; data=JSON.parse(STDIN.read); puts data['workspace']['schemes'].join(',')" 2>/dev/null || echo "")
+              ruby -e "require 'json'; data=JSON.parse(STDIN.read); puts JSON.generate(data['workspace']['schemes'])" 2>/dev/null || echo "[]")
           else
             schemes=$(xcodebuild -project "$project" -list -json 2>/dev/null | \
-              ruby -e "require 'json'; data=JSON.parse(STDIN.read); puts data['project']['schemes'].join(',')" 2>/dev/null || echo "")
+              ruby -e "require 'json'; data=JSON.parse(STDIN.read); puts JSON.generate(data['project']['schemes'])" 2>/dev/null || echo "[]")
           fi
 
-          if [ -z "$schemes" ]; then
+          if [ "$schemes" = "[]" ] || [ -z "$schemes" ]; then
             echo "❌ 未找到任何 schemes"
             exit 1
           fi
@@ -97,7 +97,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        scheme: ${{ fromJson(format('[{0}]', needs.detect-project.outputs.schemes)) }}
+        scheme: ${{ fromJson(needs.detect-project.outputs.schemes) }}
       fail-fast: false
     env:
       PROJECT_FILE: ${{ needs.detect-project.outputs.project-file }}
