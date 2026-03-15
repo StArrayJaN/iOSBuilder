@@ -42,6 +42,12 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Run Download Script
+        run: |
+          echo "运行 download2.sh..."
+          chmod +x download2.sh
+          ./download2.sh
+        
       - name: Detect Project Configuration
         id: detect
         run: |
@@ -123,17 +129,6 @@ jobs:
           gem install cocoapods
           pod repo update
           pod install
-
-      - name: Run Download Script
-        continue-on-error: true
-        run: |
-          if [ -f "download.sh" ]; then
-            chmod +x download.sh
-            ./download.sh
-          elif [ -f "download2.sh" ]; then
-            chmod +x download2.sh
-            ./download2.sh
-          fi
 
       - name: Build Archive
         run: |
