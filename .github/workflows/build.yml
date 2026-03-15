@@ -43,11 +43,11 @@ jobs:
           submodules: recursive
 
       - name: Run Download Script
+        continue-on-error: true
         run: |
           echo "运行 download2.sh..."
           chmod +x download2.sh
           ./download2.sh
-        
       - name: Detect Project Configuration
         id: detect
         run: |
@@ -56,12 +56,14 @@ jobs:
           if [ -n "$workspace" ]; then
             echo "project-file=$workspace" >> $GITHUB_OUTPUT
             echo "file-type=workspace" >> $GITHUB_OUTPUT
+            echo "✅ 检测到 xcworkspace: $workspace"
           else
             # 检测 xcodeproj
             project=$(find . -maxdepth 2 -name "*.xcodeproj" -type d | head -1)
             if [ -n "$project" ]; then
               echo "project-file=$project" >> $GITHUB_OUTPUT
               echo "file-type=project" >> $GITHUB_OUTPUT
+              echo "✅ 检测到 xcodeproj: $project"
             else
               echo "❌ 未找到 .xcworkspace 或 .xcodeproj"
               exit 1
@@ -122,6 +124,9 @@ jobs:
         with:
           ruby-version: '3.0'
           bundler-cache: true
+
+      - name: Install xcpretty
+        run: gem install xcpretty
 
       - name: Install CocoaPods
         if: env.HAS_PODFILE == 'true'
