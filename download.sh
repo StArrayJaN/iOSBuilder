@@ -21,4 +21,4 @@ chmod +x usymtool
 chmod +x usymtoolarm64
 
 echo "下载并解压完成"
-#4.6 edit
+#4.6 
