@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e  # 遇到错误立即退出
 
 echo "开始下载 Unity 导出工程..."
 
